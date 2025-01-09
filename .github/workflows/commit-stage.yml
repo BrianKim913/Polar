@@ -1,0 +1,45 @@
+name: Commit Stage
+on: push
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      #  Checks out the current Git repository (catalog-service)
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      #  Installs and configures Java runtime with specified version, distribution, and cache
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      # Scans for vulnerabilities using grype
+      - name: Code vulnerability scanning
+        uses: anchore/scan-action@v3
+        id: scan                              # ❺ Assigns identifier for reference
+        with:
+          path: "${{ github.workspace }}"     # ❻ Path to checked-out repo
+          fail-build: false                   # ❼ Don't fail on vulnerabilities
+          severity-cutoff: high               # ❽ Minimum severity to count as error
+          acs-report-enable: true             # ❾ Enable report generation
+
+      #  Upload security report to GitHub
+      - name: Upload vulnerability report
+        uses: github/codeql-action/upload-sarif@v2
+        if: success() || failure()            # ⓫ Upload even if previous step fails
+        with:
+          sarif_file: ${{steps.scan.outputs.sarif}}  # ⓬ Fetch report from previous step
+
+      # Build and test the application
+      - name: Build, unit tests and integration tests
+        run: |
+          chmod +x gradlew                    # ⓭ Make Gradle wrapper executable
+          ./gradlew build                     # ⓮ Run build, unit & integration tests
