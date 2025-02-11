@@ -37,7 +37,7 @@ jobs:
 
       #  Upload security report to GitHub
       - name: Upload vulnerability report
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: success() || failure()            # ⓫ Upload even if previous step fails
         with:
           sarif_file: ${{steps.scan.outputs.sarif}}  # ⓬ Fetch report from previous step
@@ -83,7 +83,7 @@ jobs:
           acs-report-enable: true
 
       - name: Upload vulnerability report
-        uses: github/codeql-action/upload-sarif@v2 #스캔 결과를 github에 업로드 (SARIF 형식)
+        uses: github/codeql-action/upload-sarif@v3 #스캔 결과를 github에 업로드 (SARIF 형식)
         if: success() || failure()
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
