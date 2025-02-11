@@ -1,6 +1,10 @@
 name: Commit Stage
 on: push
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: briankim913/catalog-service
+  VERSION: latest
 jobs:
   build:
     name: Build and Test
@@ -43,3 +47,53 @@ jobs:
         run: |
           chmod +x gradlew                    # ⓭ Make Gradle wrapper executable
           ./gradlew build                     # ⓮ Run build, unit & integration tests
+  package:
+    name: Package and Publish
+    if: ${{ github.ref == 'refs/heads/main' }} #메인 브랜치에서 만 해당 잡을 실해
+    needs: [ build ] #빌드가 성공적으로 됬을 때만 실행
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3 #현재 git repository를 체크아웃
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3 # 자바 런타임 설치 및 설정
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+        #스프링 부트의 Buildpacks 통합을 사용하여 컨테이너 이미지를 빌드하고 릴리스 후보의 이름을 정의
+      - name: Build container image
+        run: |
+          chmod +x gradlew 
+          ./gradlew bootBuildImage --imageName ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+
+      - name: OCI image vulnerability scanning
+        uses: anchore/scan-action@v3 #Grypef를 활용하여 vulnerability 스캔
+        id: scan
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+          fail-build: false #Set to false to avoid failing based on severity-cutoff. Default is to fail when severity-cutoff is reached (or surpassed)
+          severity-cutoff: high
+          acs-report-enable: true
+
+      - name: Upload vulnerability report
+        uses: github/codeql-action/upload-sarif@v2 #스캔 결과를 github에 업로드 (SARIF 형식)
+        if: success() || failure()
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+
+      - name: Log into container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish container image
+        run: docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
