@@ -30,7 +30,7 @@ spec:
               exec:
                 command: ["/bin/sh", "-c", "sleep 5"]
           ports:
-            - containerPort: 8080
+            - containerPort: 9001
           env:
             #Paketo 빌드팩이 사용할 환경변수, 스레드 개수
             - name: BPL_JVM_THREAD_COUNT
