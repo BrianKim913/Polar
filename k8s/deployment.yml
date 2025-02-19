@@ -23,6 +23,11 @@ spec:
           image: catalog-service
           #쿠버네티스에게 로컬에 이미자가 없으면 pull 하도록
           imagePullPolicy: IfNotPresent
+          lifecycle:
+            #graceful shutdown을 위한 SIGTERM메세지 보내기 전에, kubernetes에게 5초 기다리라고 명령어 입력
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
           ports:
             - containerPort: 8080
           env:
